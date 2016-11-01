@@ -82,7 +82,8 @@ sub standard_login_check {
 any '/logout' => sub {
     my $session = get_session();
     if (defined $session) {
-        $session->end;
+	my $user = $session->user;
+	$user->end_session($session);
     }
     #session->destroy; #enable if we start using dancer sessions
     return redirect params->{redirect_after} || '/login';

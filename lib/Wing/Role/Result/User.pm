@@ -225,6 +225,11 @@ sub start_session {
     return Wing::Session->new(db => $self->result_source->schema)->start($self, $options);
 }
 
+sub end_session {
+    my ($self, $session) = @_;
+    $session->end if defined $session;
+}
+
 sub display_name {
     my $self = shift;
     given ($self->use_as_display_name) {
