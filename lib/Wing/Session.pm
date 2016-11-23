@@ -110,7 +110,7 @@ sub check_permissions {
 
 sub extend {
     my $self = shift;
-    if ($self->password_hash ne $self->user->password) {
+    if (!$self->user || $self->password_hash ne $self->user->password) {
         $self->end;
         return;
     }

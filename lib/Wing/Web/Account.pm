@@ -83,7 +83,7 @@ any '/logout' => sub {
     my $session = get_session();
     if (defined $session) {
 	my $user = $session->user;
-	$user->end_session($session);
+	$user->end_session($session) if $user;
     }
     #session->destroy; #enable if we start using dancer sessions
     return redirect params->{redirect_after} || '/login';
