@@ -1,7 +1,7 @@
 #!/opt/local/bin/perl
 
-eval 'exec /data/apps/bin/perl  -S $0 ${1+"$@"}'
-    if 0; # not running under some shell
+# eval 'exec /data/apps/bin/perl  -S $0 ${1+"$@"}'
+#     if 0; # not running under some shell
 
 use strict;
 use warnings;
