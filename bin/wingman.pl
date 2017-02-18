@@ -1,4 +1,4 @@
-#!/opt/local/bin/perl
+#!/usr/bin/env perl
 
 BEGIN {
  die "Must set WING_HOME environment variable." unless $ENV{WING_HOME};
