@@ -8,7 +8,7 @@ use Wing::Web;
 use Wing::SSO;
 use Wing::Client;
 use String::Random qw(random_string);
-use Facebook::Graph;
+# use Facebook::Graph;
 
 get '/login' => sub {
     template 'account/login';
