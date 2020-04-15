@@ -6,6 +6,8 @@ use Ouch;
 use Dancer ':syntax';
 use Dancer::Plugin;
 
+no warnings 'experimental';
+
 set serializer => 'JSON';
 
 require Wing::Dancer;

@@ -5,6 +5,8 @@ use Ouch;
 use Moose::Role;
 with 'Wing::Role::Result::Field';
 
+no warnings 'experimental';
+
 sub wing_parent_field {
     my ($wing_object_class, $field, $options) = @_;
     my $id = $options->{related_id} || $field.'_id';

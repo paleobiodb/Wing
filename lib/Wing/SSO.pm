@@ -4,6 +4,8 @@ use Moose;
 use Wing::Perl;
 use String::Random qw(random_string);
 
+no warnings 'experimental';
+
 has db => (
     is          => 'ro',
     required    => 1,

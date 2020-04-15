@@ -15,6 +15,7 @@ with 'Wing::Role::Result::DateTimeField';
 with 'Wing::Role::Result::PrivilegeField';
 with 'Wing::Role::Result::Child';
 
+no warnings 'experimental';
 
 =head1 NAME
 

@@ -6,6 +6,8 @@ use Data::GUID;
 use URI::Escape;
 use Ouch;
 
+no warnings 'experimental';
+
 has db => (
     is          => 'ro',
     required    => 1,

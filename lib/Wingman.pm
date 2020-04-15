@@ -1,6 +1,5 @@
 package Wingman;
 
-
 =head1 NAME
 
 Wingman - A jobs server for Wing.
@@ -94,6 +93,7 @@ use List::Util qw(min max);
 use POSIX qw(ceil);
 with 'Wingman::Role::Logger';
 
+no warnings 'experimental';
 
 has plugins => (
     is      => 'ro',
