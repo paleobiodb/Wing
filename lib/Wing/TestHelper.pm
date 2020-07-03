@@ -2,7 +2,7 @@ package Wing::TestHelper;
 
 use Dancer;
 use Dancer::Request;
-use Dancer::Test appdir => '../lib';
+use Dancer::Test appdir => 'lib';
 use Plack::Test;
 use Dancer::Handler;
 use Ouch;
