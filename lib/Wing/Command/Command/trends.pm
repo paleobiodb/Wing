@@ -7,6 +7,8 @@ use Ouch;
 use POSIX qw(ceil);
 use Wing::TrendsLogger qw(:all);
 
+no warnings 'experimental';
+
 sub abstract { 'calculate trends' }
 
 sub usage_desc { 'Calculate trends.' }
