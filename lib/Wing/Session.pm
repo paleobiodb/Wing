@@ -21,22 +21,53 @@ has id => (
     },
 );
 
+# Altered by Michael McClennen, 2020-07-06. If no session is found in the cache for a given
+# session id but a record exists in the pbdb.session_data table, then create and store a new
+# session record in the cache. This way, restarting the container in which this code is running
+# will preserve login sessions. In order to make this work, the fields 'password_hash' and
+# 'ip_address' were to be added to pbdb.session_data.
+
 sub BUILD {
     my $self = shift;
-    my $session_data = Wing->cache->get('session'.$self->id);
+    my $db = shift;
+    my $session_id = $self->id;
+    my $session_data = Wing->cache->get('session'.$session_id);
     if (defined $session_data && ref $session_data eq 'HASH') {
         $self->password_hash($session_data->{password_hash});
         $self->user_id($session_data->{user_id});
         $self->extended($session_data->{extended});
+	$self->expire_days($session_data->{expire_days});
         $self->ip_address($session_data->{ip_address});
-        $self->sso($session_data->{sso});
         $self->api_key_id($session_data->{api_key_id});
     }
+    else
+    {
+	my $storage = Wing->db->storage;
+	my ($user_id, $password_hash, $ip_address, $expire_days) = $storage->dbh_do(
+	    sub {
+		my ($storage, $dbh, $session_id) = @_;
+		my $quoted = $dbh->quote($session_id);
+		$dbh->selectrow_array("SELECT user_id, password_hash, ip_address, expire_days FROM pbdb.session_data
+					WHERE session_id = $quoted");
+	    }, $session_id);
+	$self->user_id($user_id);
+	$self->password_hash($password_hash);
+	$self->ip_address($ip_address);
+	$self->expire_days($expire_days);
+	$self->extended(0);
+	$self->api_key_id(Wing->config->get('default_api_key'));
+    }
+    return $session_data;
 }
 
 has extended => (
     is          => 'rw',
     default     => 0,
+);
+
+has expire_days => (
+    is          => 'rw',
+    default     => 1,
 );
 
 has api_key_id => (
@@ -122,10 +153,10 @@ sub extend {
         {
             password_hash    => $self->password_hash, # this hash is stored here so that if the user changes their password we can log out all existing sessions
             user_id     => $self->user_id,
-            extended    => $self->extended,
-            sso         => $self->sso,
-            api_key_id  => $self->api_key_id,
             ip_address  => $self->ip_address,
+	    expire_days => $self->expire_days,
+	    extended    => $self->extended,
+            api_key_id  => $self->api_key_id,
         },
         60 * 60 * 24 * 7,
     );
@@ -143,6 +174,12 @@ sub is_human {
 sub end {
     my $self = shift;
     Wing->cache->remove('session'.$self->id);
+    Wing->db->storage->dbh_do(
+	    sub {
+		my ($storage, $dbh, $session_id) = @_;
+		my $quoted = $dbh->quote($session_id);
+		$dbh->do("DELETE FROM pbdb.session_data	WHERE session_id = $quoted");
+	    }, $self->id);
     return $self;
 }
 
@@ -152,8 +189,8 @@ sub start {
     $self->password_hash($user->password);
     $user->current_session($self);
     $self->user($user);
-    $self->sso($options->{sso});
     $self->ip_address($options->{ip_address});
+    $self->expire_days($options->{expire_days} || 1);
     $self->api_key_id($options->{api_key_id});
     return $self->extend;
 }
