@@ -10,6 +10,7 @@ get '/admin/users' => sub {
     my $current_user = get_admin_by_session_id();
     template 'admin/users', {
         current_user =>  $current_user,
+	pbdb_site    => Wing->config->get("pbdb_site") 
     };
 };
 
@@ -36,6 +37,7 @@ get '/admin/user/:id' => sub {
         current_user => $current_user,
         page_title => 'Edit User',
         user => describe(fetch_object('User'), current_user => $current_user, include_related_objects => 1, include_options => 1, include_private => 1, include_relationships => 1),
+        pbdb_site => Wing->config->get("pbdb_site"),
     };
 };
 
@@ -60,6 +62,7 @@ post '/admin/user/:id' => sub {
             error_message   => bleep,
             current_user    => $current_user, 
             user            => describe(fetch_object('User'), current_user => $current_user),
+	    pbdb_site	    => Wing->config->get("pbdb_site") 
         };
     }
     else {

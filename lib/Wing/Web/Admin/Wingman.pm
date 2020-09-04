@@ -11,8 +11,9 @@ get '/admin/wingman' => sub {
     my $user = get_user_by_session_id()->verify_is_admin();
     my $wingman = Wingman->new;
     template 'admin/wingman', {
-        stats => $wingman->stats_as_hashref,
+        stats		=> $wingman->stats_as_hashref,
         current_user    => $user,
+	pbdb_site	=> Wing->config->get("pbdb_site"),
     };
 };
 
@@ -25,6 +26,7 @@ get '/admin/wingman/tubes/:tube' => sub {
         tube_name       => $tube_name,
         config          => Wing->config->get('wingman'),
         current_user    => $user,
+	pbdb_site	=> Wing->config->get("pbdb_site"),
     };
 };
 
@@ -38,6 +40,7 @@ get '/admin/wingman/jobs/:job_id' => sub {
         config          => Wing->config->get('wingman'),
         stats           => $wingman->stats_job_as_hashref($job_id),
         current_user    => $user,
+	pbdb_site	=> Wing->config->get("pbdb_site"),
     };
 };
 

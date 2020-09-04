@@ -11,12 +11,20 @@ use String::Random qw(random_string);
 # use Facebook::Graph;
 
 get '/login' => sub {
-    template 'account/login';
+    my $config = { pbdb_site => Wing->config->get("pbdb_site") };
+    template 'account/login', $config;
 };
 
 post '/login' => sub {
-    return template 'account/login', { error_message => 'You must specify a username or email address.'} unless params->{login};
-    return template 'account/login', { error_message => 'You must specify a password.'} unless params->{password};
+    my $config = {  };
+    return template 'account/login', { error_message => 'You must specify a username or email address.',
+				       pbdb_site => Wing->config->get("pbdb_site")}
+	unless params->{login};
+    
+    return template 'account/login', { error_message => 'You must specify a password.',
+				       pbdb_site => Wing->config->get("pbdb_site")}
+	unless params->{password};
+    
     my $username = params->{login};
     my $password = params->{password};
     my $user = site_db()->resultset('User')->search({email => $username },{rows=>1})->single;
@@ -32,7 +40,8 @@ post '/login' => sub {
             my $lookup = eval { $wing->post('session/tenantsso', { username => $username , password => $password, api_key => Wing->config->get('tenants/sso_key'), }); };
             if (hug) {
                 Wing->log->warn('Error with tenant sso: '.$@);
-                return template 'account/login', { error_message => $@};
+                return template 'account/login', { error_message => $@,
+						   pbdb_site => Wing->config->get("pbdb_site") };
             }
             else {
                 $user = site_db()->resultset('User')->new({});
@@ -48,7 +57,8 @@ post '/login' => sub {
                 my $lookup = eval { $wing->post('session/tenantsso', { user_id => $user->master_user_id, password => $password, api_key => Wing->config->get('tenants/sso_key'), }); };
                 if (hug) {
                     Wing->log->warn('Error with tenant sso: '.$@);
-                    return template 'account/login', { error_message => $@ };
+                    return template 'account/login', { error_message => $@,
+						       pbdb_site => Wing->config->get("pbdb_site") };
                 }
                 else {
                     $user->sync_with_remote_data($lookup, @syncable_fields);
@@ -71,12 +81,16 @@ post '/login' => sub {
 sub standard_login_check {
     my $user = shift;
     my $password = shift;
-    return template 'account/login', { error_message => 'User not found.'} unless defined $user;
+    return template 'account/login', { error_message => 'User not found.',
+				       pbdb_site => Wing->config->get("pbdb_site") }
+	unless defined $user;
+    
     # validate password
     if ($user->is_password_valid($password)) {
         return login($user);
     }
-    return template 'account/login', { error_message => 'Password incorrect.'};
+    return template 'account/login', { error_message => 'Password incorrect.',
+				       pbdb_site => Wing->config->get("pbdb_site") };
 }
 
 any '/logout' => sub {
@@ -92,7 +106,8 @@ any '/logout' => sub {
 get '/account/apikeys' => sub {
     my $user = get_user_by_session_id();
     my $api_keys = $user->api_keys;
-    template 'account/apikeys', {current_user => $user, apikeys => format_list($api_keys, current_user => $user) };
+    template 'account/apikeys', {current_user => $user, apikeys => format_list($api_keys, current_user => $user),
+				 pbdb_site => Wing->config->get("pbdb_site")};
 };
 
 post '/account/apikey' => sub {
@@ -121,7 +136,7 @@ get '/account/apikey/:id' => sub {
     template 'account/apikey', {
         current_user => $current_user,
         apikey => describe($api_key, current_user => $current_user),
-    };
+	pbdb_site => Wing->config->get("pbdb_site")    };
 };
 
 del '/account/apikey/:id' => sub {
@@ -152,7 +167,7 @@ post '/account/apikey/:id' => sub {
 
 get '/account' => sub {
     my $user = get_user_by_session_id();
-    template 'account/index', { current_user => $user, };
+    template 'account/index', { current_user => $user, pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 post '/account' => sub {
@@ -193,22 +208,27 @@ post '/account/create' => sub {
         }
     };
     if ($@) {
-        return template 'account/login', { error_message => bleep };
+        return template 'account/login', { error_message => bleep,
+					   pbdb_site => Wing->config->get("pbdb_site") };
     }
     $user->insert;
     return login($user);
 };
 
 get '/account/reset-password' => sub {
-    template 'account/reset-password';
+    template 'account/reset-password', { pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 post '/account/reset-password' => sub {
-    return template 'account/reset-password', {error_message => 'You must supply an email address or username.'} unless params->{login};
+    return template 'account/reset-password', { error_message => 'You must supply an email address or username.',
+						pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{login};
     my $user = site_db()->resultset('User')->search({username => params->{login}},{rows=>1})->single;
     unless (defined $user) {
         $user = site_db()->resultset('User')->search({email => params->{login}},{rows=>1})->single;
-        return template 'account/reset-password', {error_message => 'User not found.'} unless defined $user;
+        return template 'account/reset-password', {error_message => 'User not found.',
+						   pbdb_site => Wing->config->get("pbdb_site") }
+	    unless defined $user;
     }
 
     # validate password
@@ -222,27 +242,35 @@ post '/account/reset-password' => sub {
         );
         return redirect '/account/reset-password-code';
     }
-    return template 'account/reset-password', {error_message => 'That account has no email address associated with it.'};
+    return template 'account/reset-password', {error_message => 'That account has no email address associated with it.',
+					       pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 get '/account/reset-password-code' => sub {
-    template 'account/reset-password-code';
+    template 'account/reset-password-code', { pbdb_site => Wing->config->get("pbdb_site") };
 };
 
 post '/account/reset-password-code' => sub {
-    return template 'account/reset-password-code', {error_message => 'You must supply a reset code.'} unless params->{code};
-    return template 'account/reset-password-code', {error_message => 'You must supply a new password.'} unless params->{password1};
+    return template 'account/reset-password-code', {error_message => 'You must supply a reset code.',
+						    pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{code};
+    return template 'account/reset-password-code', {error_message => 'You must supply a new password.',
+						    pbdb_site => Wing->config->get("pbdb_site") }
+	unless params->{password1};
     if (params->{password1} ne params->{password2}) {
-        return template 'account/reset-password-code', {error_message => 'The passwords you typed do not match.'};
+        return template 'account/reset-password-code', {error_message => 'The passwords you typed do not match.',
+							pbdb_site => Wing->config->get("pbdb_site") };
     }
 
     my $user_id = Wing->cache->get('password_reset'.params->{code});
     unless ($user_id) {
-        return template 'account/reset-password-code', {error_message => 'That is an invalid code.'};
+        return template 'account/reset-password-code', {error_message => 'That is an invalid code.',
+							pbdb_site => Wing->config->get("pbdb_site") };
     }
     my $user = site_db()->resultset('User')->find($user_id);
     unless (defined $user) {
-        return template 'account/reset-password-code', {error_message => 'The user attached to that code no longer exists.'};
+        return template 'account/reset-password-code', {error_message => 'The user attached to that code no longer exists.',
+							pbdb_site => Wing->config->get("pbdb_site") };
     }
     $user->encrypt_and_set_password(params->{password1});
     return login($user);
@@ -281,7 +309,7 @@ get '/sso' => sub {
             return redirect '/sso/authorize?sso_id='.$sso->id;
         }
     }
-    template 'account/login', {sso_id => $sso->id};
+    template 'account/login', {sso_id => $sso->id, pbdb_site => Wing->config->get("pbdb_site")};
 };
 
 get '/sso/authorize' => sub {
@@ -292,7 +320,8 @@ get '/sso/authorize' => sub {
         current_user            => $user,
         sso_id                  => $sso->id,
         requested_permissions   => $sso->requested_permissions,
-        api_key                 => $sso->api_key->describe,
+	api_key                 => $sso->api_key->describe,
+	pbdb_site		=> Wing->config->get("pbdb_site"),
     };
 };
 
@@ -307,6 +336,7 @@ get '/sso/success' => sub {
     my $user = get_user_by_session_id();
     template 'account/ssosuccess', {
         current_user            => $user,
+        pbdb_site		=> Wing->config->get("pbdb_site")
     };    
 };
 
@@ -359,7 +389,8 @@ get '/account/facebook/postback' => sub {
         }
     }
     elsif (! defined $user) {
-        return template 'account/finish_facebook', { facebook => $fbuser };
+        return template 'account/finish_facebook', { facebook => $fbuser,
+						     pbdb_site => Wing->config->get("pbdb_site") };
     }
     return login($user);
 };
@@ -370,6 +401,7 @@ get '/account/profile/:id' => sub {
     template 'account/profile', {
         current_user    => $current_user,
         profile_user    => describe($user, current_user => $current_user),
+	pbdb_site	=> Wing->config->get("pbdb_site")
     };
 };
 
