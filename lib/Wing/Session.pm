@@ -6,6 +6,8 @@ use Data::GUID;
 use URI::Escape;
 use Ouch;
 
+use List::Util qw(any);
+
 no warnings 'experimental';
 
 has db => (
@@ -134,7 +136,7 @@ sub check_permissions {
     ouch(450, 'Insufficient permissions.',$permissions) unless $self->has_api_key_id; # can't have permissions if they didn't assign an API key
     my $existing = $self->get_permissions;
     foreach my $permission (@{$permissions}) {
-        unless ($permission ~~ $existing) {
+        unless (any { $_ eq $permission } $existing->@*) {
             ouch(450, 'Insufficient permissions.',$permissions);
         }
     }

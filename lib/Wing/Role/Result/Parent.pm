@@ -5,13 +5,15 @@ use Ouch;
 use Moose::Role;
 with 'Wing::Role::Result::Field';
 
+use List::Util qw(any);
+
 no warnings 'experimental';
 
 sub wing_parent_field {
     my ($wing_object_class, $field, $options) = @_;
     my $id = $options->{related_id} || $field.'_id';
     my %dbic = ( data_type => 'char', size => 36, is_nullable => 1 );
-    if ($options->{edit} ~~ [qw(required unique)]) {
+    if ($options->{edit} eq 'required' || $options->{edit} eq 'unique') {
         $dbic{is_nullable} = 0;
     }
     
@@ -75,7 +77,7 @@ sub wing_parent_relationship {
 
     # create relationship
     my @relationship = ($field, $options->{related_class}, $id);
-    unless ($options->{edit} ~~ [qw(required unique)]) {
+    unless ($options->{edit} eq 'required' || $options->{edit} eq 'unique') {
         push @relationship, { on_delete => 'set null', join_type => 'left' };
     }
     $class->meta->add_after_method_modifier(wing_apply_relationships => sub {
@@ -97,7 +99,7 @@ sub wing_parent_relationship {
         my $out = $orig->($self, %describe_options);
         my $describe = sub {
             if (exists $describe_options{include_related_objects}) {
-                if ((ref $describe_options{include_related_objects} eq 'ARRAY' && $field ~~ $describe_options{include_related_objects}) || (ref $describe_options{include_related_objects} ne 'ARRAY' && $describe_options{include_related_objects})) {
+                if ((ref $describe_options{include_related_objects} eq 'ARRAY' && any { $_ eq $field } $describe_options{include_related_objects}->@*) || (ref $describe_options{include_related_objects} ne 'ARRAY' && $describe_options{include_related_objects})) {
                     if ($self->$id) {
                         $out->{$field} = $self->$field->describe;
                     }

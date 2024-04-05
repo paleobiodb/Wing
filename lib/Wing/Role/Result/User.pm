@@ -16,6 +16,8 @@ with 'Wing::Role::Result::PrivilegeField';
 with 'Wing::Role::Result::Child';
 
 no warnings 'experimental';
+no warnings 'deprecated';
+use feature 'switch';
 
 =head1 NAME
 

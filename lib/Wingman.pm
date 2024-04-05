@@ -89,7 +89,7 @@ use Plugin::Tiny;
 use Beanstalk::Client;
 use JSON::XS;
 use Ouch;
-use List::Util qw(min max);
+use List::Util qw(min max any);
 use POSIX qw(ceil);
 with 'Wingman::Role::Logger';
 
@@ -252,7 +252,7 @@ sub put {
     $args = {} unless defined $args; # must be a hashref
     $options = {} unless defined $options; # must be a hashref
     my $default_tube = Wing->config->get('wingman/beanstalkd/default_tube');
-    if ($job_type ~~ $self->job_types) {
+    if (any { $_ eq $job_type } $self->job_types->@*) {
         if (exists $options->{tube} && defined $options->{tube} && $options->{tube} ne $default_tube) {
             $self->use($options->{tube});
         }

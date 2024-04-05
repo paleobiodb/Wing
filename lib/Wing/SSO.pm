@@ -3,6 +3,7 @@ package Wing::SSO;
 use Moose;
 use Wing::Perl;
 use String::Random qw(random_string);
+use List::Util qw(any);
 
 no warnings 'experimental';
 
@@ -62,8 +63,9 @@ sub has_requested_permissions {
     my $available = Wing->config->get('api_key_permissions');
     foreach my $permission (@requested) {
         next if $permission eq ''; # just in case they request null permissions
-        next if !($permission ~~ $available); # just in case they request something we don't support
-        unless ($permission ~~ $existing) {
+        # next if !($permission ~~ $available); # just in case they request
+        # something we don't support
+        unless (any { $_ eq $permission } $existing->@*) {
             return 0;
         }
     }
