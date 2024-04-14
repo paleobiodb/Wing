@@ -4,6 +4,7 @@ use Wing;
 use Wing::Perl;
 use Wing::Command -command;
 use Ouch;
+use Encode qw(encode);
 
 sub abstract { 'manage users' }
 
@@ -47,7 +48,7 @@ sub list_users {
         if ($user->admin) {
             $suffix = ' (admin)';
         }
-        say $user->username.$suffix;
+        say encode('UTF-8', $user->username.$suffix);
     }
     say 'Total: ', $resultset->count;
 }

@@ -5,6 +5,7 @@ use Wing::Perl;
 use Wing::Command -command;
 use Ouch;
 use POSIX qw(ceil);
+use List::Util qw(any);
 use Wing::TrendsLogger qw(:all);
 
 no warnings 'experimental';
@@ -109,7 +110,7 @@ sub hourly {
     my $trends = Wing->db->resultset('TrendsLog');
     my $logs = $trends->search({date_created => {-between => [$start, $end]}});
     foreach my $name (@{$names}) {
-        next if $name ~~ $delta_names;
+        next if any { $_ eq $name } $delta_names->@*;
         log_trend_hourly($name, $logs->search({name => $name})->get_column('value')->sum + 0, $day);
     }
 }
@@ -124,7 +125,7 @@ sub daily {
     my $trends_hourly = Wing->db->resultset('TrendsLogHourly');
     my $logs = $trends_hourly->search({hour => {-between => [$start, $end]}});
     foreach my $name (@{$names}) {
-        next if $name ~~ $delta_names;
+        next if any { $_ eq $name } $delta_names->@*;
         log_trend_daily($name, $logs->search({name => $name})->get_column('value')->sum + 0, $day);
     }
 }
@@ -140,7 +141,7 @@ sub monthly {
     my $trends_daily = Wing->db->resultset('TrendsLogDaily');
     my $logs = $trends_daily->search({day => {-between => [$start, $end]}});
     foreach my $name (@{$names}) {
-        next if $name ~~ $delta_names;
+        next if any { $_ eq $name } $delta_names->@*;
         log_trend_monthly($name, $logs->search({name => $name})->get_column('value')->sum + 0, $day);
     }
 }
@@ -157,7 +158,7 @@ sub yearly {
     my $trends_monthly = Wing->db->resultset('TrendsLogMonthly');
     my $logs = $trends_monthly->search({month => {-between => [$start, $end]}});
     foreach my $name (@{$names}) {
-        next if $name ~~ $delta_names;
+        next if any { $_ eq $name } $delta_names->@*;
         log_trend_yearly($name, $logs->search({name => $name})->get_column('value')->sum + 0, $day);
     }
 }
