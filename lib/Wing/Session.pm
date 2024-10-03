@@ -175,12 +175,13 @@ sub is_human {
 
 sub end {
     my $self = shift;
+    my $db = Wing->config->get('content_db') || 'pbdb';
     Wing->cache->remove('session'.$self->id);
     Wing->db->storage->dbh_do(
 	    sub {
 		my ($storage, $dbh, $session_id) = @_;
 		my $quoted = $dbh->quote($session_id);
-		$dbh->do("DELETE FROM pbdb.session_data	WHERE session_id = $quoted");
+		$dbh->do("DELETE FROM $db.session_data	WHERE session_id = $quoted");
 	    }, $self->id);
     return $self;
 }

@@ -13,82 +13,105 @@ del '/api/session/:id' => sub {
     return { success => 1 };
 };
 
-post '/api/session/sso/:id' => sub {
-    unless (params->{private_key}) {
-        ouch 441, 'Private Key required.', 'private_key';
-    }
-    my $sso = Wing::SSO->new(id => params->{id}, db => site_db());
-    if (!$sso->api_key_id || !defined $sso->api_key) {
-        ouch 440, 'SSO token not found.';
-    }
-    unless ($sso->api_key->private_key eq params->{private_key}) {
-        ouch 454, 'Private key does not match SSO token.';
-    }
-    $sso->delete;
-    ouch(440, 'No user associated with SSO token.') unless $sso->user_id;
-    return describe($sso->user->start_session({ip_address => request->remote_address, api_key_id => $sso->api_key_id, sso => 1}));
-};
-
 get '/api/session/:id' => sub {
     my $session = get_session(session_id => params->{id});
     return describe($session, current_user => eval { get_user_by_session_id() });
 };
 
-post '/api/session' => sub {
-    ouch(441, 'You need an API key.', 'api_key_id') unless params->{api_key_id};
-    ouch(441, 'You must specify a username.', 'username') unless params->{username};
-    ouch(441, 'You must specify a password.', 'password') unless params->{password};
-    my $user = site_db()->resultset('User')->search({username => params->{username}},{rows=>1})->single;
-    ouch(440, 'User not found.') unless defined $user;
-
-    ouch(441, 'API Key does not belong to this user.') unless site_db()->resultset('APIKey')->search({user_id => $user->id, id => params->{api_key_id}})->count;
-
-    # rate limiter
-    my $max = Wing->config->get('rpc_limit') || 30;
-    if ($user->rpc_count > $max) {
-        ouch 452, 'Slow down! You are only allowed to make ('.$max.') requests per minute to the server.';
+post '/api/login' => sub {
+    
+    ouch(400, 'You must specify a username', 'username') unless params->{username};
+    ouch(400, 'You must specify a password', 'password') unless params->{password};
+    
+    # Look up the username.
+    
+    my $schema = site_db();
+    my $username = params->{username};
+    
+    my $user = $schema->resultset('User')->search({username => $username},{rows=>1})->single;
+    
+    # If there is no matching username, look up by email.
+    
+    unless ( defined $user )
+    {
+	my @results = $schema->resultset('User')->search({email => $username });
+	
+	if ( @results == 1 )
+	{
+	    $user = $results[0];
+	}
+	
+	elsif ( @results > 1 )
+	{
+	    ouch(400, 'Email is not unique');
+	}
     }
     
-    # is developer
-    unless ($user->is_developer) { 
-        ouch 453, 'This user is not a developer.';
-    }
-
-    # validate password
-    if ($user->is_password_valid(params->{password})) {
-        my $session = $user->start_session({ api_key_id => params->{api_key_id}, ip_address => request->remote_address });
-        return describe($session, current_user => $user);
-    }
-    else {
-        ouch 454, 'Password incorrect.';
-    }
+    # Validate the username and password.
+    
+    ouch(401, 'Username or password incorrect') unless defined $user &&
+	$user->is_password_valid(params->{password});
+    
+    # Check that this account is active.
+    
+    ouch(403, "This account is disabled")
+	if $user->get_column('contributor_status') ne 'active';
+    
+    # Create a new login session.
+    
+    my $session = $user->start_session({ api_key_id => params->{api_key_id}, 
+					 ip_address => request->remote_address });
+    
+    my $dbh = Wing->db->storage->dbh;
+    
+    my $session_id = $session->id;
+    my $user_id = $user->get_column('id');
+    my $password_hash = $user->get_column('password');
+    my $role = $user->get_column('role');
+    my $expire_days = $session->expire_days || 1;
+    my $enterer_no = $user->get_column('person_no') || 0;
+    my $authorizer_no = $user->get_column('authorizer_no') || 0;
+    my $superuser = $user->get_column('admin') || 0;
+    
+    my $quoted_id = $dbh->quote($session_id);
+    my $quoted_user = $dbh->quote($user_id);
+    my $quoted_pw = $dbh->quote($password_hash);
+    my $quoted_ip = $dbh->quote(request->remote_address || '127.0.0.1');
+    my $quoted_role = $dbh->quote($role);
+    my $quoted_exp = $dbh->quote($expire_days);
+    my $quoted_ent = $dbh->quote($enterer_no);
+    my $quoted_auth = $dbh->quote($authorizer_no);
+    my $quoted_sup = $dbh->quote($superuser);
+    
+    my $db = Wing->config->get('content_db') || 'pbdb';
+    
+    my $sql = "INSERT INTO $db.session_data (session_id, user_id, password_hash, ip_address,
+		    role, expire_days, superuser, enterer_no, authorizer_no)
+		VALUES ($quoted_id, $quoted_user, $quoted_pw, $quoted_ip, $quoted_role,
+		    $quoted_exp, $quoted_sup, $quoted_ent, $quoted_auth)";
+    
+    $dbh->do($sql);
+    
+    set_cookie session_id   => $session_id,
+                expires     => '+1d',
+                http_only   => 0,
+                path        => '/';
+    
+    return describe($session, current_user => $user);
 };
 
-post '/api/session/tenantsso' => sub {
-    my $sso_key = Wing->config->get('tenants/sso_key');
-    ouch(501, 'Tenant SSO not configured.', 'api_key') unless $sso_key;
-    ouch(441, 'You need a tenant sso key.', 'api_key')   unless params->{api_key};
-    ouch(441, 'Wrong tenant sso key', 'api_key') unless params->{api_key} eq $sso_key;
-    ouch(441, 'You must specify a password.', 'password') unless params->{password};
-    ouch(441, 'You must specify a username or user_id.', )
-        unless params->{username} || params->{user_id};
-    my $identifiers = [];
-    if (params->{username}) {
-        push @{ $identifiers }, (username => params->{username});
+any '/api/logout' => sub {
+    
+    my $session = get_session();
+    if (defined $session) {
+	my $user = $session->user;
+	$user->end_session($session) if $user;
     }
-    elsif (params->{user_id}) {
-        push @{ $identifiers }, (id => params->{user_id});
-    }
-    my $user = site_db()->resultset('User')->search({ -or => $identifiers },{rows=>1})->single;
-    ouch(440, 'User not found.') unless defined $user;
-
-    if ($user->is_password_valid(params->{password})) {
-        return describe($user, current_user => $user);
-    }
-    else {
-        ouch 454, 'Password incorrect.';
-    }
+    #session->destroy; #enable if we start using dancer sessions
+    
+    return { success => 1 };
 };
+
 
 
 1;
