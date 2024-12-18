@@ -14,7 +14,7 @@ require Wing::Dancer;
 
 register get_session => sub {
     my (%options) = @_;
-    my $session_id = $options{session_id} || params->{session_id};
+    my $session_id = $options{session_id} || params->{session_id} || $ENV{DEBUG_SESSION_ID};
     my $cookie = cookies->{session_id};
     if (!defined $session_id && defined $cookie) {
         $session_id = $cookie->value;
